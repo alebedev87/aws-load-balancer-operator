@@ -7,5 +7,6 @@ roleRef:
   kind: ClusterRole
   name: controller-role
 subjects:
-  - kind: ServiceAccount
-    name: controller-manager
+  - kind: Group
+    name: system:serviceaccounts:aws-load-balancer-operator
+    namespace: aws-load-balancer-operator

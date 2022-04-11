@@ -9,17 +9,7 @@ import (
 )
 
 func (r *AWSLoadBalancerControllerReconciler) ensureClusterRoleAndBinding(ctx context.Context, sa *corev1.ServiceAccount, controller *albo.AWSLoadBalancerController) error {
-	err := r.ensureClusterRole(ctx, controller)
-	if err != nil {
-		return err
-	}
-
-	err = r.ensureClusterRoleBinding(ctx, sa, controller)
-	if err != nil {
-		return err
-	}
-
-	err = r.ensureRole(ctx, controller)
+	err := r.ensureRole(ctx, controller)
 	if err != nil {
 		return err
 	}
