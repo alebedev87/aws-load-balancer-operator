@@ -13,6 +13,9 @@ var (
 	// outputfile specifies the location of the generated code.
 	outputFile string
 
+	// outputCRFile specifies the location of the generated CredentialsRequest YAML.
+	outputCRFile string
+
 	// pkg specifies the package with which the code is generated.
 	pkg string
 )
@@ -25,7 +28,7 @@ var rootCmd = &cobra.Command{
 	CLI produces a '.go' file that is consumed by the aws load balancer operator.
 	`,
 	Run: func(cmd *cobra.Command, args []string) {
-		generateIAMPolicy(inputFile, outputFile, pkg)
+		generateIAMPolicy(inputFile, outputFile, outputCRFile, pkg)
 	},
 }
 
@@ -46,6 +49,8 @@ func init() {
 
 	rootCmd.PersistentFlags().StringVarP(&outputFile, "output-file", "o", "", "Used to specify output Go file path.")
 	_ = rootCmd.MarkPersistentFlagRequired("output-file")
+
+	rootCmd.PersistentFlags().StringVarP(&outputCRFile, "output-cr-file", "c", "", "Used to specify output CredentialsRequest YAML file path.")
 
 	rootCmd.PersistentFlags().StringVarP(&pkg, "package", "p", "main", "Used to specify output Go file path.")
 	_ = rootCmd.MarkPersistentFlagRequired("package")

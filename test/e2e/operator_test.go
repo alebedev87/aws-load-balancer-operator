@@ -72,20 +72,6 @@ func init() {
 	utilruntime.Must(elbv1beta1.AddToScheme(scheme))
 }
 
-func newAWSLoadBalancerController(name types.NamespacedName, ingressClass string, addons []albo.AWSAddon) albo.AWSLoadBalancerController {
-	return albo.AWSLoadBalancerController{
-		ObjectMeta: v1.ObjectMeta{
-			Name:      name.Name,
-			Namespace: name.Namespace,
-		},
-		Spec: albo.AWSLoadBalancerControllerSpec{
-			SubnetTagging: albo.AutoSubnetTaggingPolicy,
-			IngressClass:  ingressClass,
-			EnabledAddons: addons,
-		},
-	}
-}
-
 func TestMain(m *testing.M) {
 	kubeConfig, err := config.GetConfig()
 	if err != nil {
@@ -165,12 +151,12 @@ func TestAWSLoadBalancerControllerWithDefaultIngressClass(t *testing.T) {
 	t.Log("Creating aws load balancer controller instance with default ingress class")
 
 	name := types.NamespacedName{Name: "cluster", Namespace: "aws-load-balancer-operator"}
-	alb := newAWSLoadBalancerController(name, "alb", []albo.AWSAddon{})
-	if err := kubeClient.Create(context.TODO(), &alb); err != nil && !errors.IsAlreadyExists(err) {
+	alb := newALBCBuilder().withName(name).build()
+	if err := kubeClient.Create(context.TODO(), alb); err != nil && !errors.IsAlreadyExists(err) {
 		t.Fatalf("failed to create aws load balancer controller %q: %v", name, err)
 	}
 	defer func() {
-		waitForDeletion(t, kubeClient, &alb, defaultTimeout)
+		waitForDeletion(t, kubeClient, alb, defaultTimeout)
 	}()
 
 	expected := []appsv1.DeploymentCondition{
@@ -226,6 +212,101 @@ func TestAWSLoadBalancerControllerWithDefaultIngressClass(t *testing.T) {
 	}
 }
 
+// TestAWSLoadBalancerControllerWithCredentialsSecret tests the basic happy flow for the operator
+// using the explicitly specified credentials secret.
+func TestAWSLoadBalancerControllerWithCredentialsSecret(t *testing.T) {
+	t.Log("Creating aws load balancer controller instance with credentials secret")
+
+	// provision AWS credentials for ALBC imitating the manually created secret
+	albcSecretName := "manual-aws-credentials-e2e"
+	albcSecretRef := corev1.ObjectReference{
+		Name:      albcSecretName,
+		Namespace: "aws-load-balancer-operator",
+	}
+	albcCrName := types.NamespacedName{
+		Name:      "mimic-manual-creds",
+		Namespace: "openshift-cloud-credential-operator",
+	}
+	albcCr, err := albcCredentialsRequest(albcCrName, albcSecretRef, "testsa")
+	if err != nil {
+		t.Fatalf("failed to generate desired credentials request to mimic manually created albc credentials: %v", err)
+	}
+	if err := kubeClient.Create(context.TODO(), albcCr); err != nil {
+		t.Fatalf("failed to create credentials request to mimic manually created albc credentials: %v", err)
+	}
+	defer func() {
+		waitForDeletion(t, kubeClient, albcCr, defaultTimeout)
+	}()
+
+	name := types.NamespacedName{Name: "cluster", Namespace: "aws-load-balancer-operator"}
+	alb := newALBCBuilder().withName(name).withCredSecret(albcSecretName).build()
+	if err := kubeClient.Create(context.TODO(), alb); err != nil && !errors.IsAlreadyExists(err) {
+		t.Fatalf("failed to create aws load balancer controller %q: %v", name, err)
+	}
+	defer func() {
+		waitForDeletion(t, kubeClient, alb, defaultTimeout)
+	}()
+
+	expected := []appsv1.DeploymentCondition{
+		{Type: appsv1.DeploymentAvailable, Status: corev1.ConditionTrue},
+	}
+	deploymentName := types.NamespacedName{Name: "aws-load-balancer-controller-cluster", Namespace: "aws-load-balancer-operator"}
+	if err := waitForDeploymentStatusCondition(t, kubeClient, defaultTimeout, deploymentName, expected...); err != nil {
+		t.Fatalf("did not get expected available condition for deployment: %v", err)
+	}
+
+	// verify that the secret used by ALBC is different from the default provisioned by the operator
+	if verified, err := verifyConsumedCredentialsSecret(kubeClient, deploymentName, albcSecretName); err != nil {
+		t.Fatalf("failed to verify consumed credentials secret for controller deployment: %v", err)
+	} else if !verified {
+		t.Fatalf("expected credentials secret %q is not consumed by the controller deployment %q", albcSecretName, deploymentName)
+	}
+
+	testWorkloadNamespace := "aws-load-balancer-test-default-ing"
+	echoSvc := createTestWorkload(t, testWorkloadNamespace)
+
+	t.Log("Creating Ingress Resource with default ingress class")
+	ingName := types.NamespacedName{Name: "echoserver", Namespace: testWorkloadNamespace}
+	ingAnnotations := map[string]string{
+		"alb.ingress.kubernetes.io/scheme":      "internet-facing",
+		"alb.ingress.kubernetes.io/target-type": "instance",
+	}
+	echoIng := buildEchoIngress(ingName, "alb", ingAnnotations, echoSvc)
+	err = retry.OnError(defaultRetryPolicy,
+		func(err error) bool {
+			t.Logf("retrying creation of echo ingress due to %v", err)
+			return !errors.IsAlreadyExists(err)
+		},
+		func() error { return kubeClient.Create(context.TODO(), echoIng) })
+	if err != nil && !errors.IsAlreadyExists(err) {
+		t.Fatalf("failed to ensure echo ingress %s: %v", echoIng.Name, err)
+	}
+	defer func() {
+		waitForDeletion(t, kubeClient, echoIng, defaultTimeout)
+	}()
+
+	var address string
+	if address, err = getIngress(t, kubeClient, defaultTimeout, ingName); err != nil {
+		t.Fatalf("did not get expected available condition for ingress: %v", err)
+	}
+
+	t.Logf("Testing aws load balancer for ingress traffic at address %s", address)
+	for _, rule := range echoIng.Spec.Rules {
+		req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("http://%s", address), nil)
+		if err != nil {
+			t.Fatalf("failed to build client request: %v", err)
+		}
+		req.Host = rule.Host
+
+		err = waitForHTTPClientCondition(t, &httpClient, req, 5*time.Second, defaultTimeout, func(r *http.Response) bool {
+			return r.StatusCode == http.StatusOK
+		})
+		if err != nil {
+			t.Fatalf("failed verify condition with external client: %v", err)
+		}
+	}
+}
+
 func TestAWSLoadBalancerControllerWithCustomIngressClass(t *testing.T) {
 	t.Log("Creating a custom ingress class")
 	ingclassName := types.NamespacedName{Name: "custom-alb", Namespace: "aws-load-balancer-operator"}
@@ -240,12 +321,12 @@ func TestAWSLoadBalancerControllerWithCustomIngressClass(t *testing.T) {
 	t.Log("Creating aws load balancer controller instance with custom ingress class")
 
 	name := types.NamespacedName{Name: "cluster", Namespace: "aws-load-balancer-operator"}
-	alb := newAWSLoadBalancerController(name, ingclassName.Name, []albo.AWSAddon{})
-	if err := kubeClient.Create(context.TODO(), &alb); err != nil && !errors.IsAlreadyExists(err) {
+	alb := newALBCBuilder().withName(name).withIngressClass(ingclassName.Name).build()
+	if err := kubeClient.Create(context.TODO(), alb); err != nil && !errors.IsAlreadyExists(err) {
 		t.Fatalf("failed to create aws load balancer controller %q: %v", name, err)
 	}
 	defer func() {
-		waitForDeletion(t, kubeClient, &alb, defaultTimeout)
+		waitForDeletion(t, kubeClient, alb, defaultTimeout)
 	}()
 
 	expected := []appsv1.DeploymentCondition{
@@ -305,12 +386,12 @@ func TestAWSLoadBalancerControllerWithInternalLoadBalancer(t *testing.T) {
 	t.Log("Creating aws load balancer controller instance with default ingress class")
 
 	name := types.NamespacedName{Name: "cluster", Namespace: "aws-load-balancer-operator"}
-	alb := newAWSLoadBalancerController(name, "alb", []albo.AWSAddon{})
-	if err := kubeClient.Create(context.TODO(), &alb); err != nil && !errors.IsAlreadyExists(err) {
+	alb := newALBCBuilder().withName(name).build()
+	if err := kubeClient.Create(context.TODO(), alb); err != nil && !errors.IsAlreadyExists(err) {
 		t.Fatalf("failed to create aws load balancer controller %q: %v", name, err)
 	}
 	defer func() {
-		waitForDeletion(t, kubeClient, &alb, defaultTimeout)
+		waitForDeletion(t, kubeClient, alb, defaultTimeout)
 	}()
 
 	expected := []appsv1.DeploymentCondition{
@@ -391,12 +472,12 @@ func TestAWSLoadBalancerControllerWithWAFv2(t *testing.T) {
 	t.Log("Creating aws load balancer controller instance with default ingress class")
 
 	name := types.NamespacedName{Name: "cluster", Namespace: "aws-load-balancer-operator"}
-	alb := newAWSLoadBalancerController(name, "alb", []albo.AWSAddon{albo.AWSAddonWAFv2})
-	if err := kubeClient.Create(context.TODO(), &alb); err != nil && !errors.IsAlreadyExists(err) {
+	alb := newALBCBuilder().withName(name).withAddons([]albo.AWSAddon{albo.AWSAddonWAFv2}).build()
+	if err := kubeClient.Create(context.TODO(), alb); err != nil && !errors.IsAlreadyExists(err) {
 		t.Fatalf("failed to create aws load balancer controller %q: %v", name, err)
 	}
 	defer func() {
-		waitForDeletion(t, kubeClient, &alb, defaultTimeout)
+		waitForDeletion(t, kubeClient, alb, defaultTimeout)
 	}()
 
 	expected := []appsv1.DeploymentCondition{
@@ -495,12 +576,12 @@ func TestAWSLoadBalancerControllerWithWAFRegional(t *testing.T) {
 	t.Log("Creating aws load balancer controller instance with default ingress class")
 
 	name := types.NamespacedName{Name: "cluster", Namespace: "aws-load-balancer-operator"}
-	alb := newAWSLoadBalancerController(name, "alb", []albo.AWSAddon{albo.AWSAddonWAFv1})
-	if err := kubeClient.Create(context.TODO(), &alb); err != nil && !errors.IsAlreadyExists(err) {
+	alb := newALBCBuilder().withName(name).withAddons([]albo.AWSAddon{albo.AWSAddonWAFv1}).build()
+	if err := kubeClient.Create(context.TODO(), alb); err != nil && !errors.IsAlreadyExists(err) {
 		t.Fatalf("failed to create aws load balancer controller %q: %v", name, err)
 	}
 	defer func() {
-		waitForDeletion(t, kubeClient, &alb, defaultTimeout)
+		waitForDeletion(t, kubeClient, alb, defaultTimeout)
 	}()
 
 	expected := []appsv1.DeploymentCondition{
@@ -695,12 +776,12 @@ func TestIngressGroup(t *testing.T) {
 	t.Log("Creating aws load balancer controller instance with custom ingress class")
 
 	name := types.NamespacedName{Name: "cluster", Namespace: "aws-load-balancer-operator"}
-	alb := newAWSLoadBalancerController(name, ingressClassName.Name, []albo.AWSAddon{})
-	if err := kubeClient.Create(context.TODO(), &alb); err != nil && !errors.IsAlreadyExists(err) {
+	alb := newALBCBuilder().withName(name).withIngressClass(ingressClassName.Name).build()
+	if err := kubeClient.Create(context.TODO(), alb); err != nil && !errors.IsAlreadyExists(err) {
 		t.Fatalf("failed to create aws load balancer controller %q: %v", name, err)
 	}
 	defer func() {
-		waitForDeletion(t, kubeClient, &alb, defaultTimeout)
+		waitForDeletion(t, kubeClient, alb, defaultTimeout)
 	}()
 
 	expected := []appsv1.DeploymentCondition{

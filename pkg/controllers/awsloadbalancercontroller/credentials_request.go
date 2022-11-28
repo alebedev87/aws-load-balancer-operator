@@ -78,8 +78,7 @@ func (r *AWSLoadBalancerControllerReconciler) ensureCredentialsRequest(ctx conte
 	return current, nil
 }
 
-func (r *AWSLoadBalancerControllerReconciler) credentialsSecretProvisioned(ctx context.Context, cr *cco.CredentialsRequest) (bool, error) {
-	name := types.NamespacedName{Name: cr.Spec.SecretRef.Name, Namespace: cr.Spec.SecretRef.Namespace}
+func (r *AWSLoadBalancerControllerReconciler) credentialsSecretProvisioned(ctx context.Context, name types.NamespacedName) (bool, error) {
 	var secret corev1.Secret
 
 	err := r.Client.Get(context.TODO(), name, &secret)
@@ -173,6 +172,14 @@ func isCredentialsRequestChanged(current, desired *cco.CredentialsRequest) (bool
 	}
 
 	if current.Namespace != desired.Namespace {
+		return true, nil
+	}
+
+	if !reflect.DeepEqual(current.Spec.SecretRef, desired.Spec.SecretRef) {
+		return true, nil
+	}
+
+	if !equalStrings(current.Spec.ServiceAccountNames, desired.Spec.ServiceAccountNames) {
 		return true, nil
 	}
 
