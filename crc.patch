@@ -1,0 +1,99 @@
+diff --git a/bundle/manifests/aws-load-balancer-operator.clusterserviceversion.yaml b/bundle/manifests/aws-load-balancer-operator.clusterserviceversion.yaml
+index 1999b79..92dd713 100644
+--- a/bundle/manifests/aws-load-balancer-operator.clusterserviceversion.yaml
++++ b/bundle/manifests/aws-load-balancer-operator.clusterserviceversion.yaml
+@@ -294,6 +294,9 @@ spec:
+                 - --leader-elect
+                 - --image=$(RELATED_IMAGE_CONTROLLER)
+                 - --namespace=$(TARGET_NAMESPACE)
++                - --aws-region=us-east-1
++                - --cluster-name=dummy
++                - --vpc-id=vpc-0ee77bde2a8563601
+                 command:
+                 - /manager
+                 env:
+diff --git a/config/manager/manager.yaml b/config/manager/manager.yaml
+index 38dd413..27abad1 100644
+--- a/config/manager/manager.yaml
++++ b/config/manager/manager.yaml
+@@ -37,6 +37,9 @@ spec:
+         - "--leader-elect"
+         - "--image=$(RELATED_IMAGE_CONTROLLER)"
+         - "--namespace=$(TARGET_NAMESPACE)"
++        - "--aws-region=us-east-1"
++        - "--cluster-name=dummy"
++        - "--vpc-id=vpc-0ee77bde2a8563601"
+         image: controller:latest
+         name: manager
+         securityContext:
+diff --git a/main.go b/main.go
+index 8704a99..692ca48 100644
+--- a/main.go
++++ b/main.go
+@@ -79,6 +79,9 @@ func main() {
+ 	var probeAddr string
+ 	var namespace string
+ 	var image string
++	var awsRegion string
++	var clusterName string
++	var vpcID string
+ 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
+ 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
+ 	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
+@@ -86,6 +89,9 @@ func main() {
+ 			"Enabling this will ensure there is only one active controller manager.")
+ 	flag.StringVar(&namespace, "namespace", "aws-load-balancer-operator", "The namespace where operands should be installed")
+ 	flag.StringVar(&image, "image", "quay.io/aws-load-balancer-operator/aws-load-balancer-controller:latest", "The image to be used for the operand")
++	flag.StringVar(&awsRegion, "aws-region", "", "The name of the AWS region to be used by the controller. Deduced from cluster info of not provided.")
++	flag.StringVar(&clusterName, "cluster-name", "", "The name of the cluster to be used by the controller to find subnets for LBs. Deduced from cluster info if not provided.")
++	flag.StringVar(&vpcID, "vpc-id", "", "The ID of the VPC where the subnets for AWS LBs can be found.")
+ 	opts := zap.Options{
+ 		Development: true,
+ 	}
+@@ -94,6 +100,8 @@ func main() {
+ 
+ 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
+ 
++	var err error
++
+ 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
+ 		Scheme:                 scheme,
+ 		MetricsBindAddress:     metricsAddr,
+@@ -113,11 +121,13 @@ func main() {
+ 		os.Exit(1)
+ 	}
+ 
+-	// get the cluster details
+-	clusterName, awsRegion, err := clusterInfo(context.TODO(), mgr.GetClient())
+-	if err != nil {
+-		setupLog.Error(err, "failed to get cluster details")
+-		os.Exit(1)
++	if awsRegion == "" && clusterName == "" {
++		// get the cluster details
++		clusterName, awsRegion, err = clusterInfo(context.TODO(), mgr.GetClient())
++		if err != nil {
++			setupLog.Error(err, "failed to get cluster details")
++			os.Exit(1)
++		}
+ 	}
+ 
+ 	// make and aws.EC2Client
+@@ -127,11 +137,13 @@ func main() {
+ 		os.Exit(1)
+ 	}
+ 
+-	// get the VPC ID where the cluster is running
+-	vpcID, err := aws.GetVPCId(context.TODO(), ec2Client, clusterName)
+-	if err != nil {
+-		setupLog.Error(err, "failed to get VPC ID")
+-		os.Exit(1)
++	if vpcID == "" {
++		// get the VPC ID where the cluster is running
++		vpcID, err = aws.GetVPCId(context.TODO(), ec2Client, clusterName)
++		if err != nil {
++			setupLog.Error(err, "failed to get VPC ID")
++			os.Exit(1)
++		}
+ 	}
+ 
+ 	if err != nil {
