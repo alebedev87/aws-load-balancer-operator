@@ -20,6 +20,12 @@ spec:
       displayName: AWSLoad Balancer Controller
       kind: AWSLoadBalancerController
       name: awsloadbalancercontrollers.networking.olm.openshift.io
+      version: v1
+    - description: AWSLoadBalancerController is the Schema for the awsloadbalancercontrollers
+        API
+      displayName: AWSLoad Balancer Controller
+      kind: AWSLoadBalancerController
+      name: awsloadbalancercontrollers.networking.olm.openshift.io
       version: v1alpha1
   description: |-
     Operator to simplify management of aws-load-balancer-controller
