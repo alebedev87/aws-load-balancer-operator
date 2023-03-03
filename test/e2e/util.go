@@ -26,8 +26,8 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	albov1alpha1 "github.com/openshift/aws-load-balancer-operator/api/v1alpha1"
 	albo "github.com/openshift/aws-load-balancer-operator/api/v1beta1"
-	albc "github.com/openshift/aws-load-balancer-operator/pkg/controllers/awsloadbalancercontroller"
 )
 
 var (
@@ -363,6 +363,24 @@ func (b *albcBuilder) withCredSecretIf(condition bool, name string) *albcBuilder
 		b.credentials = &albo.SecretReference{Name: name}
 	}
 	return b
+}
+
+func (b *albcBuilder) buildv1alpha1() *albov1alpha1.AWSLoadBalancerController {
+	albc := &albov1alpha1.AWSLoadBalancerController{
+		ObjectMeta: v1.ObjectMeta{
+			Name:      b.nsname.Name,
+			Namespace: b.nsname.Namespace,
+		},
+		Spec: albov1alpha1.AWSLoadBalancerControllerSpec{
+			SubnetTagging: albov1alpha1.SubnetTaggingPolicy(b.tagPolicy),
+			IngressClass:  b.ingressClass,
+			Credentials:   (*albov1alpha1.SecretReference)(b.credentials),
+		},
+	}
+	for _, a := range b.addons {
+		albc.Spec.EnabledAddons = append(albc.Spec.EnabledAddons, albov1alpha1.AWSAddon(a))
+	}
+	return albc
 }
 
 func (b *albcBuilder) build() *albo.AWSLoadBalancerController {
