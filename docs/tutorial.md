@@ -10,7 +10,7 @@ with the name `cluster` will be reconciled by the operator.
 ## AWSLoadBalancerController resource
 
 ```yaml
-apiVersion: networking.olm.openshift.io/v1alpha1
+apiVersion: networking.olm.openshift.io/v1beta1
 kind: AWSLoadBalancerController
 metadata:
   name: cluster
