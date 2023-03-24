@@ -241,13 +241,13 @@ spec:
               additionalResourceTags:
                 additionalProperties:
                   type: string
-                description: "Default AWS Tags that will be applied to all AWS resources
-                  managed by this controller (default []). \n This value is required
-                  so that this controller can function as expected in parallel to
-                  openshift-router."
+                description: additionalResourceTags are the AWS Tags that will be
+                  applied to all AWS resources managed by this controller (default
+                  {}). The addition of new tags as well as the update or removal of
+                  the existing tags will be propagated to the AWS resources.
                 type: object
               config:
-                description: Config specifies further customization options for the
+                description: config specifies further customization options for the
                   controller's deployment spec.
                 properties:
                   replicas:
@@ -256,20 +256,26 @@ spec:
                     type: integer
                 type: object
               credentials:
-                description: Credentials is a reference to a secret containing the
+                description: credentials is a reference to a secret containing the
                   AWS credentials to be used by the controller. The secret is required
-                  to be in the operator namespace. If this field is empty - the credentials
-                  will be requested using the Cloud Credentials API, see https://docs.openshift.com/container-platform/4.11/authentication/managing_cloud_provider_credentials/about-cloud-credential-operator.html.
+                  to have `credentials` data key containing the AWS CLI credentials
+                  file (static or STS), for examples, see https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-files.html.
+                  under `credentials` data key. The secret is required to be in the
+                  operator namespace. If this field is empty - the credentials will
+                  be requested using the Cloud Credentials API, see https://docs.openshift.com/container-platform/4.11/authentication/managing_cloud_provider_credentials/about-cloud-credential-operator.html.
                 properties:
                   name:
-                    description: Name is the name of the secret.
+                    description: name is the name of the secret.
                     type: string
                 required:
                 - name
                 type: object
               enabledAddons:
-                description: AWSAddon describes the AWS services that can be integrated
-                  with the AWS Load Balancer.
+                description: enabledAddons describes the AWS services that can be
+                  integrated with the AWS Load Balancers created by the controller.
+                  Note that when an addon which was previously enabled is disabled
+                  the controller does not remove the existing addon attachment for
+                  the provisioned load balancers.
                 items:
                   enum:
                   - AWSShield
@@ -279,17 +285,22 @@ spec:
                 type: array
               ingressClass:
                 default: alb
-                description: IngressClass specifies the Ingress class which the controller
+                description: "ingressClass specifies the Ingress class which the controller
                   will reconcile. This Ingress class will be created unless it already
-                  exists. The value will default to "alb".
+                  exists. The value will default to \"alb\". \n The defaulting to
+                  \"alb\" is necessary so that this controller can function as expected
+                  in parallel with openshift-router, for more info see https://github.com/openshift/enhancements/blob/master/enhancements/ingress/aws-load-balancer-operator.md#parallel-operation-of-the-openshift-router-and-lb-controller"
                 type: string
               subnetTagging:
                 default: Auto
-                description: "SubnetTagging describes how resource tagging will be
+                description: "subnetTagging describes how resource tagging will be
                   done by the operator. \n When in \"Auto\", the operator will detect
                   the subnets where the load balancers will be provisioned and have
-                  the required resource tags on them. Whereas when set to manual,
-                  this responsibility lies on the user."
+                  the required resource tags on them. Whereas when set to \"Manual\",
+                  this responsibility lies on the user. The subnets tagged by the
+                  operator will be removed when transitioning from \"Auto\" to \"Manual\".
+                  Whereas the manually tagged subnets will be left intact when transitioning
+                  from \"Manual\" to \"Auto\"."
                 enum:
                 - Auto
                 - Manual
@@ -300,7 +311,7 @@ spec:
               of AWSLoadBalancerController.
             properties:
               conditions:
-                description: Conditions is a list of operator-specific conditions
+                description: conditions is a list of operator-specific conditions
                   and their status.
                 items:
                   description: "Condition contains details for one aspect of the current
@@ -369,43 +380,46 @@ spec:
                   - type
                   type: object
                 type: array
+                x-kubernetes-list-map-keys:
+                - type
+                x-kubernetes-list-type: map
               ingressClass:
-                description: IngressClass is the current default Ingress class.
+                description: ingressClass is the current default Ingress class.
                 type: string
               observedGeneration:
-                description: ObservedGeneration is the most recent generation observed.
+                description: observedGeneration is the most recent generation observed.
                 format: int64
                 type: integer
               subnets:
-                description: Subnets contains details of the subnets of the cluster
+                description: subnets contains details of the subnets of the cluster
                 properties:
                   internal:
-                    description: Internal is the list of subnet ids which have the
+                    description: internal is the list of subnet ids which have the
                       tag `kubernetes.io/role/internal-elb`
                     items:
                       type: string
                     type: array
                   public:
-                    description: Public is the list of subnet ids which have the tag
+                    description: public is the list of subnet ids which have the tag
                       `kubernetes.io/role/elb`
                     items:
                       type: string
                     type: array
                   subnetTagging:
-                    description: SubnetTagging indicates the current status of the
+                    description: subnetTagging indicates the current status of the
                       subnet tags
                     enum:
                     - Auto
                     - Manual
                     type: string
                   tagged:
-                    description: Tagged is the list of subnet ids which have been
+                    description: tagged is the list of subnet ids which have been
                       tagged by the operator
                     items:
                       type: string
                     type: array
                   untagged:
-                    description: Untagged is the list of subnet ids which do not have
+                    description: untagged is the list of subnet ids which do not have
                       any role tags
                     items:
                       type: string
