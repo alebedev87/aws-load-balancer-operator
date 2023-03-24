@@ -44,52 +44,61 @@ const (
 // AWSLoadBalancerControllerSpec defines the desired state of AWSLoadBalancerController
 type AWSLoadBalancerControllerSpec struct {
 
-	// SubnetTagging describes how resource tagging will be done by the operator.
-	//
+	// subnetTagging describes how the subnet tagging will be done by the operator.
 	// When in "Auto", the operator will detect the subnets where the load balancers
 	// will be provisioned and have the required resource tags on them. Whereas when
-	// set to manual, this responsibility lies on the user.
+	// set to "Manual", this responsibility lies on the user. The tags added by the operator
+	// will be removed when transitioning from "Auto" to "Manual". Whereas the tags added by the user
+	// will be left intact when transitioning from "Manual" to "Auto".
 	//
 	// +kubebuilder:default:=Auto
 	// +kubebuilder:validation:Optional
 	// +optional
 	SubnetTagging SubnetTaggingPolicy `json:"subnetTagging,omitempty"`
 
-	// Default AWS Tags that will be applied to all AWS resources managed by this
-	// controller (default []).
-	//
-	// This value is required so that this controller can function as expected
-	// in parallel to openshift-router.
+	// additionalResourceTags are the AWS Tags that will be applied to all AWS resources managed by this
+	// controller (default {}). The addition of new tags as well as the update or removal of the existing tags
+	// will be propagated to the AWS resources.
 	//
 	// +kubebuilder:default:={}
 	// +kubebuilder:validation:Optional
 	// +optional
 	AdditionalResourceTags map[string]string `json:"additionalResourceTags,omitempty"`
 
-	// IngressClass specifies the Ingress class which the controller will reconcile.
+	// ingressClass specifies the Ingress class which the controller will reconcile.
 	// This Ingress class will be created unless it already exists.
 	// The value will default to "alb".
+	//
+	// The defaulting to "alb" is necessary so that this controller can function as expected
+	// in parallel with openshift-router, for more info see
+	// https://github.com/openshift/enhancements/blob/master/enhancements/ingress/aws-load-balancer-operator.md#parallel-operation-of-the-openshift-router-and-lb-controller
 	//
 	// +kubebuilder:default:=alb
 	// +kubebuilder:validation:Optional
 	// +optional
 	IngressClass string `json:"ingressClass,omitempty"`
 
-	// Config specifies further customization options for the controller's deployment spec.
+	// config specifies further customization options for the controller's deployment spec.
 	//
 	// +kubebuilder:validation:Optional
 	// +optional
 	Config *AWSLoadBalancerDeploymentConfig `json:"config,omitempty"`
 
-	// AWSAddon describes the AWS services that can be integrated with
-	// the AWS Load Balancer.
+	// enabledAddons describes the AWS services that can be integrated with
+	// the AWS Load Balancers created by the controller.
+	// Note that when an addon which was previously enabled is disabled
+	// the controller does not remove the existing addon attachment for the provisioned load balancers.
 	//
 	// +kubebuilder:validation:Optional
 	// +optional
-	EnabledAddons []AWSAddon `json:"enabledAddons,omitempty"` // indicates which AWS addons should be disabled.
+	EnabledAddons []AWSAddon `json:"enabledAddons,omitempty"`
 
-	// Credentials is a reference to a secret containing
+	// credentials is a reference to a secret containing
 	// the AWS credentials to be used by the controller.
+	// The secret is required to have `credentials` data key
+	// containing the AWS CLI credentials file (static or STS),
+	// for examples, see https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-files.html.
+	// under `credentials` data key.
 	// The secret is required to be in the operator namespace.
 	// If this field is empty - the credentials will be
 	// requested using the Cloud Credentials API,
@@ -101,8 +110,14 @@ type AWSLoadBalancerControllerSpec struct {
 }
 
 type AWSLoadBalancerDeploymentConfig struct {
-
+	// replicas is the desired number of the controller replicas.
+	// The controller exposes webhooks for IngressClassParams and TargetGroupBinding custom resources.
+	// At least 1 replica of the controller should be ready to serve the webhook requests.
+	// For that reason the replicas cannot be set to 0.
+	// The leader election is enabled on the controller if the number of replicas is greater than 1.
+	//
 	// +kubebuilder:default:=2
+	// +kubebuilder:validation:Minimum:=1
 	// +kubebuilder:validation:Optional
 	// +optional
 	Replicas int32 `json:"replicas,omitempty"`
@@ -111,7 +126,7 @@ type AWSLoadBalancerDeploymentConfig struct {
 // SecretReference contains the information to let you locate the desired secret.
 // Secret is required to be in the operator namespace.
 type SecretReference struct {
-	// Name is the name of the secret.
+	// name is the name of the secret.
 	//
 	// +kubebuilder:validation:Required
 	// +required
@@ -120,27 +135,29 @@ type SecretReference struct {
 
 // AWSLoadBalancerControllerStatus defines the observed state of AWSLoadBalancerController.
 type AWSLoadBalancerControllerStatus struct {
-
-	// Conditions is a list of operator-specific conditions
-	// and their status.
+	// conditions is a list of operator-specific conditions and their status.
 	//
 	// +kubebuilder:validation:Optional
 	// +optional
-	Conditions []metav1.Condition `json:"conditions,omitempty"`
+	// +patchMergeKey=type
+	// +patchStrategy=merge
+	// +listType=map
+	// +listMapKey=type
+	Conditions []metav1.Condition `json:"conditions,omitempty" patchStrategy:"merge" patchMergeKey:"type"`
 
-	// ObservedGeneration is the most recent generation observed.
+	// observedGeneration is the most recent generation observed.
 	//
 	// +kubebuilder:validation:Optional
 	// +optional
 	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
 
-	// Subnets contains details of the subnets of the cluster
+	// subnets contains details of the subnets of the cluster, those having `kubernetes.io/cluster/${cluster-name}` tag.
 	//
 	// +kubebuilder:validation:Optional
 	// +optional
 	Subnets *AWSLoadBalancerControllerStatusSubnets `json:"subnets,omitempty"`
 
-	// IngressClass is the current default Ingress class.
+	// ingressClass is the Ingress class currently used by the controller.
 	//
 	// +kubebuilder:validation:Optional
 	// +optional
@@ -148,30 +165,31 @@ type AWSLoadBalancerControllerStatus struct {
 }
 
 type AWSLoadBalancerControllerStatusSubnets struct {
-	// SubnetTagging indicates the current status of the subnet tags
+	// subnetTagging indicates the current status of the subnet tags.
+	//
 	// +kubebuilder:validation:Optional
 	// +optional
 	SubnetTagging SubnetTaggingPolicy `json:"subnetTagging,omitempty"`
 
-	// Internal is the list of subnet ids which have the tag `kubernetes.io/role/internal-elb`
+	// internal is the list of subnet ids which have the tag `kubernetes.io/role/internal-elb`.
 	//
 	// +kubebuilder:validation:Optional
 	// +optional
 	Internal []string `json:"internal,omitempty"`
 
-	// Public is the list of subnet ids which have the tag `kubernetes.io/role/elb`
+	// public is the list of subnet ids which have the tag `kubernetes.io/role/elb`.
 	//
 	// +kubebuilder:validation:Optional
 	// +optional
 	Public []string `json:"public,omitempty"`
 
-	// Tagged is the list of subnet ids which have been tagged by the operator
+	// tagged is the list of subnet ids which have been tagged by the operator.
 	//
 	// +kubebuilder:validation:Optional
 	// +optional
 	Tagged []string `json:"tagged,omitempty"`
 
-	// Untagged is the list of subnet ids which do not have any role tags
+	// untagged is the list of subnet ids which do not have any role tags.
 	//
 	// +kubebuilder:validation:Optional
 	// +optional
