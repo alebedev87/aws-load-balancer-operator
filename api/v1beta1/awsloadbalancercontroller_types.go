@@ -57,13 +57,20 @@ type AWSLoadBalancerControllerSpec struct {
 	SubnetTagging SubnetTaggingPolicy `json:"subnetTagging,omitempty"`
 
 	// additionalResourceTags are the AWS Tags that will be applied to all AWS resources managed by this
-	// controller (default {}). The addition of new tags as well as the update or removal of the existing tags
-	// will be propagated to the AWS resources.
+	// controller. The addition of new tags as well as the update or removal of the existing tags
+	// will be propagated to the AWS resources. AWS supports a maximum of 50 tags per resource.
+	// AWSLoadBalancerController reserves 3 tags for its use, the rest is split in half between
+	// the tag annotation which can be set on the ingress or service and this field.
+	// Each tag key must be unique.
 	//
-	// +kubebuilder:default:={}
+	// +kubebuilder:validation:MaxItems=24
 	// +kubebuilder:validation:Optional
 	// +optional
-	AdditionalResourceTags map[string]string `json:"additionalResourceTags,omitempty"`
+	// +listType=map
+	// +listMapKey=key
+	// +patchMergeKey=key
+	// +patchStrategy=merge
+	AdditionalResourceTags []AWSResourceTag `json:"additionalResourceTags,omitempty" patchStrategy:"merge" patchMergeKey:"key"`
 
 	// ingressClass specifies the Ingress class which the controller will reconcile.
 	// This Ingress class will be created unless it already exists.
@@ -107,6 +114,30 @@ type AWSLoadBalancerControllerSpec struct {
 	// +kubebuilder:validation:Optional
 	// +optional
 	Credentials *SecretReference `json:"credentials,omitempty"`
+}
+
+// AWSResourceTag is a tag to apply to AWS resources created by the controller.
+type AWSResourceTag struct {
+	// key is the key of the tag.
+	// See https://docs.aws.amazon.com/tag-editor/latest/userguide/tagging.html#tag-conventions
+	// for information on the tagging conventions.
+	//
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=128
+	// +kubebuilder:validation:Pattern=`^[0-9A-Za-z_.:/=+-@]+$`
+	// +required
+	Key string `json:"key"`
+
+	// value is the value of the tag.
+	// See https://docs.aws.amazon.com/tag-editor/latest/userguide/tagging.html#tag-conventions
+	// for information on the tagging conventions.
+	//
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:MaxLength=256
+	// +kubebuilder:validation:Pattern=`^[0-9A-Za-z_.:/=+-@]*$`
+	// +required
+	Value string `json:"value"`
 }
 
 type AWSLoadBalancerDeploymentConfig struct {
