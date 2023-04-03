@@ -154,6 +154,10 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "AWSLoadBalancerController")
 		os.Exit(1)
 	}
+	if err = (&networkingolmv1beta1.AWSLoadBalancerController{}).SetupWebhookWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create webhook", "webhook", "AWSLoadBalancerController")
+		os.Exit(1)
+	}
 	//+kubebuilder:scaffold:builder
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
