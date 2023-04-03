@@ -114,7 +114,10 @@ manifests: ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefin
 	hack/sync-upstream-rbac.sh
 
 .PHONY: generate
-generate: iamctl-gen ## Generate code containing DeepCopy, DeepCopyInto, DeepCopyObject method implementations and iamctl policies.
+generate: generate-api iamctl-gen ## Generate code containing DeepCopy, DeepCopyInto, DeepCopyObject method implementations and iamctl policies.
+
+.PHONY: generate-api
+generate-api: ## Generate code containing DeepCopy, DeepCopyInto, DeepCopyObject method implementations.
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
 
 .PHONY: fmt
@@ -191,6 +194,7 @@ operator-sdk:
 ifeq (, $(shell which operator-sdk 2>/dev/null))
 	@{ \
 	set -e ;\
+	$(OPERATOR_SDK) version | grep -q $(OPERATOR_SDK_VERSION) && exit 0 ;\
 	curl -Lk  https://github.com/operator-framework/operator-sdk/releases/download/$(OPERATOR_SDK_VERSION)/operator-sdk_linux_amd64 > $(OPERATOR_SDK) ;\
 	chmod u+x $(OPERATOR_SDK) ;\
 	}
