@@ -16,6 +16,8 @@ limitations under the License.
 package v1alpha1
 
 import (
+	configv1 "github.com/openshift/api/config/v1"
+
 	"sigs.k8s.io/controller-runtime/pkg/conversion"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 
@@ -48,7 +50,7 @@ func (src *AWSLoadBalancerController) ConvertTo(dstRaw conversion.Hub) error {
 		dst.Spec.EnabledAddons = append(dst.Spec.EnabledAddons, v1beta1.AWSAddon(addon))
 	}
 	if src.Spec.Credentials != nil {
-		dst.Spec.Credentials = &v1beta1.SecretReference{
+		dst.Spec.Credentials = &configv1.SecretNameReference{
 			Name: src.Spec.Credentials.Name,
 		}
 	}

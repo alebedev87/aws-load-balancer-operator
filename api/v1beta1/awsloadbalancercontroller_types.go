@@ -17,6 +17,7 @@ limitations under the License.
 package v1beta1
 
 import (
+	configv1 "github.com/openshift/api/config/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -113,7 +114,7 @@ type AWSLoadBalancerControllerSpec struct {
 	//
 	// +kubebuilder:validation:Optional
 	// +optional
-	Credentials *SecretReference `json:"credentials,omitempty"`
+	Credentials *configv1.SecretNameReference `json:"credentials,omitempty"`
 }
 
 // AWSResourceTag is a tag to apply to AWS resources created by the controller.
@@ -152,16 +153,6 @@ type AWSLoadBalancerDeploymentConfig struct {
 	// +kubebuilder:validation:Optional
 	// +optional
 	Replicas int32 `json:"replicas,omitempty"`
-}
-
-// SecretReference contains the information to let you locate the desired secret.
-// Secret is required to be in the operator namespace.
-type SecretReference struct {
-	// name is the name of the secret.
-	//
-	// +kubebuilder:validation:Required
-	// +required
-	Name string `json:"name"`
 }
 
 // AWSLoadBalancerControllerStatus defines the observed state of AWSLoadBalancerController.
