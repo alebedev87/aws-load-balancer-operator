@@ -31,7 +31,7 @@ import (
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	albo "github.com/openshift/aws-load-balancer-operator/api/v1beta1"
+	albo "github.com/openshift/aws-load-balancer-operator/api/v1"
 )
 
 // Event is a simplified representation of the watch event received from the controller runtime client.

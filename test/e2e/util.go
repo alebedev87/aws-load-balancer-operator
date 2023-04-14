@@ -28,8 +28,8 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	albo "github.com/openshift/aws-load-balancer-operator/api/v1"
 	albov1alpha1 "github.com/openshift/aws-load-balancer-operator/api/v1alpha1"
-	albo "github.com/openshift/aws-load-balancer-operator/api/v1beta1"
 )
 
 var (

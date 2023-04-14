@@ -13,7 +13,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 
-	albo "github.com/openshift/aws-load-balancer-operator/api/v1beta1"
+	albo "github.com/openshift/aws-load-balancer-operator/api/v1"
 )
 
 var _ = Describe("AWS Load Balancer Reconciler Watch Predicates", func() {

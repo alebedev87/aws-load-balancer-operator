@@ -36,7 +36,7 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	albo "github.com/openshift/aws-load-balancer-operator/api/v1beta1"
+	albo "github.com/openshift/aws-load-balancer-operator/api/v1"
 	albc "github.com/openshift/aws-load-balancer-operator/pkg/controllers/awsloadbalancercontroller"
 	//+kubebuilder:scaffold:imports
 )
