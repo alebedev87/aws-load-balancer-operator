@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1beta1
+package v1
 
 import (
 	configv1 "github.com/openshift/api/config/v1"
@@ -57,12 +57,13 @@ type AWSLoadBalancerControllerSpec struct {
 	// +optional
 	SubnetTagging SubnetTaggingPolicy `json:"subnetTagging,omitempty"`
 
-	// additionalResourceTags are the AWS Tags that will be applied to all AWS resources managed by this
+	// additionalResourceTags are the AWS tags that will be applied to all AWS resources managed by this
 	// controller. The addition of new tags as well as the update or removal of the existing tags
-	// will be propagated to the AWS resources. AWS supports a maximum of 50 tags per resource.
-	// AWSLoadBalancerController reserves 3 tags for its use, the rest is split in half between
-	// the tag annotation which can be set on the ingress or service and this field.
-	// Each tag key must be unique.
+	// will be propagated to the AWS resources. The controller owns all the tags of the managed AWS resources,
+	// unsolicited tags are removed.The controller doesn't watch for changes on AWS, so the removal of the unsolicited
+	// tags can only be triggered by an event coming from OpenShift. AWS supports a maximum of 50 tags per resource.
+	// AWSLoadBalancerController reserves 3 tags for its use, the rest is split in half between the tag annotation
+	// which can be set on the ingress or service and this field. Each tag key must be unique.
 	//
 	// +kubebuilder:validation:MaxItems=24
 	// +kubebuilder:validation:Optional
@@ -75,11 +76,9 @@ type AWSLoadBalancerControllerSpec struct {
 
 	// ingressClass specifies the Ingress class which the controller will reconcile.
 	// This Ingress class will be created unless it already exists.
-	// The value will default to "alb".
-	//
-	// The defaulting to "alb" is necessary so that this controller can function as expected
-	// in parallel with openshift-router, for more info see
-	// https://github.com/openshift/enhancements/blob/master/enhancements/ingress/aws-load-balancer-operator.md#parallel-operation-of-the-openshift-router-and-lb-controller
+	// The value will default to "alb". The defaulting to "alb" is necessary
+	// so that this controller can function as expected in parallel with openshift-router,
+	// for more info see https://github.com/openshift/enhancements/blob/master/enhancements/ingress/aws-load-balancer-operator.md#parallel-operation-of-the-openshift-router-and-lb-controller.
 	//
 	// +kubebuilder:default:=alb
 	// +kubebuilder:validation:Optional
@@ -94,8 +93,12 @@ type AWSLoadBalancerControllerSpec struct {
 
 	// enabledAddons describes the AWS services that can be integrated with
 	// the AWS Load Balancers created by the controller.
-	// Note that when an addon which was previously enabled is disabled
-	// the controller does not remove the existing addon attachment for the provisioned load balancers.
+	// Enabling an addon does not immediately enable the feature on the ingress
+	// resources. Instead, it allows for configuration of the feature through the
+	// annotations. Similarly, removing an addon does not immediately disable the feature
+	// on the ingress resources. Instead, it ignores the configuration of the feature
+	// through the annotations. For more info on the addon annotations see
+	// https://kubernetes-sigs.github.io/aws-load-balancer-controller/v2.4/guide/ingress/annotations/#addons.
 	//
 	// +kubebuilder:validation:Optional
 	// +optional

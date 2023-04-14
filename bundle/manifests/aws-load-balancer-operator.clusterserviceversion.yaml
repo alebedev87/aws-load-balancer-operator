@@ -45,7 +45,7 @@ metadata:
           }
         },
         {
-          "apiVersion": "networking.olm.openshift.io/v1alpha1",
+          "apiVersion": "networking.olm.openshift.io/v1",
           "kind": "AWSLoadBalancerController",
           "metadata": {
             "name": "cluster"
@@ -55,7 +55,7 @@ metadata:
           }
         },
         {
-          "apiVersion": "networking.olm.openshift.io/v1beta1",
+          "apiVersion": "networking.olm.openshift.io/v1alpha1",
           "kind": "AWSLoadBalancerController",
           "metadata": {
             "name": "cluster"
@@ -84,13 +84,13 @@ spec:
       displayName: AWSLoad Balancer Controller
       kind: AWSLoadBalancerController
       name: awsloadbalancercontrollers.networking.olm.openshift.io
-      version: v1alpha1
+      version: v1
     - description: AWSLoadBalancerController is the Schema for the awsloadbalancercontrollers
         API
       displayName: AWSLoad Balancer Controller
       kind: AWSLoadBalancerController
       name: awsloadbalancercontrollers.networking.olm.openshift.io
-      version: v1beta1
+      version: v1alpha1
     - kind: IngressClassParams
       name: ingressclassparams.elbv2.k8s.aws
       version: v1beta1

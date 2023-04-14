@@ -43,8 +43,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
+	networkingolmv1 "github.com/openshift/aws-load-balancer-operator/api/v1"
 	networkingolmv1alpha1 "github.com/openshift/aws-load-balancer-operator/api/v1alpha1"
-	networkingolmv1beta1 "github.com/openshift/aws-load-balancer-operator/api/v1beta1"
 	"github.com/openshift/aws-load-balancer-operator/pkg/aws"
 	"github.com/openshift/aws-load-balancer-operator/pkg/controllers/awsloadbalancercontroller"
 	//+kubebuilder:scaffold:imports
@@ -66,7 +66,7 @@ func init() {
 	utilruntime.Must(networkingolmv1alpha1.AddToScheme(scheme))
 
 	utilruntime.Must(cco.AddToScheme(scheme))
-	utilruntime.Must(networkingolmv1beta1.AddToScheme(scheme))
+	utilruntime.Must(networkingolmv1.AddToScheme(scheme))
 	//+kubebuilder:scaffold:scheme
 
 	utilruntime.Must(configv1.Install(scheme))
@@ -154,7 +154,7 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "AWSLoadBalancerController")
 		os.Exit(1)
 	}
-	if err = (&networkingolmv1beta1.AWSLoadBalancerController{}).SetupWebhookWithManager(mgr); err != nil {
+	if err = (&networkingolmv1.AWSLoadBalancerController{}).SetupWebhookWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create webhook", "webhook", "AWSLoadBalancerController")
 		os.Exit(1)
 	}

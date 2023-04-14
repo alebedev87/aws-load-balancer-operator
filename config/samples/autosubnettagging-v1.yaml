@@ -1,4 +1,4 @@
-apiVersion: networking.olm.openshift.io/v1beta1
+apiVersion: networking.olm.openshift.io/v1
 kind: AWSLoadBalancerController
 metadata:
   name: cluster

@@ -19,8 +19,8 @@ resources:
   domain: openshift.io
   group: networking.olm
   kind: AWSLoadBalancerController
-  path: github.com/openshift/aws-load-balancer-operator/api/v1beta1
-  version: v1beta1
+  path: github.com/openshift/aws-load-balancer-operator/api/v1
+  version: v1
   webhooks:
     conversion: true
     webhookVersion: v1
