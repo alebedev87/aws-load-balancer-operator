@@ -21,33 +21,33 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/conversion"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 
-	"github.com/openshift/aws-load-balancer-operator/api/v1beta1"
+	v1 "github.com/openshift/aws-load-balancer-operator/api/v1"
 )
 
 var albcWebhookLog = logf.Log.WithName("albc-conversion-webhook")
 
-// ConvertTo converts this  AWSLoadBalancerController to the Hub version (v1beta1).
+// ConvertTo converts this  AWSLoadBalancerController to the Hub version (v1).
 func (src *AWSLoadBalancerController) ConvertTo(dstRaw conversion.Hub) error {
-	albcWebhookLog.Info("Converting to v1beta1", "name", src.Name)
+	albcWebhookLog.Info("Converting to v1", "name", src.Name)
 
-	dst := dstRaw.(*v1beta1.AWSLoadBalancerController)
+	dst := dstRaw.(*v1.AWSLoadBalancerController)
 
 	// ObjectMeta
 	dst.ObjectMeta = src.ObjectMeta
 
 	// Spec
-	dst.Spec.SubnetTagging = v1beta1.SubnetTaggingPolicy(src.Spec.SubnetTagging)
+	dst.Spec.SubnetTagging = v1.SubnetTaggingPolicy(src.Spec.SubnetTagging)
 	for k, v := range src.Spec.AdditionalResourceTags {
-		dst.Spec.AdditionalResourceTags = append(dst.Spec.AdditionalResourceTags, v1beta1.AWSResourceTag{Key: k, Value: v})
+		dst.Spec.AdditionalResourceTags = append(dst.Spec.AdditionalResourceTags, v1.AWSResourceTag{Key: k, Value: v})
 	}
 	dst.Spec.IngressClass = src.Spec.IngressClass
 	if src.Spec.Config != nil {
-		dst.Spec.Config = &v1beta1.AWSLoadBalancerDeploymentConfig{
+		dst.Spec.Config = &v1.AWSLoadBalancerDeploymentConfig{
 			Replicas: src.Spec.Config.Replicas,
 		}
 	}
 	for _, addon := range src.Spec.EnabledAddons {
-		dst.Spec.EnabledAddons = append(dst.Spec.EnabledAddons, v1beta1.AWSAddon(addon))
+		dst.Spec.EnabledAddons = append(dst.Spec.EnabledAddons, v1.AWSAddon(addon))
 	}
 	if src.Spec.Credentials != nil {
 		dst.Spec.Credentials = &configv1.SecretNameReference{
@@ -59,8 +59,8 @@ func (src *AWSLoadBalancerController) ConvertTo(dstRaw conversion.Hub) error {
 	dst.Status.Conditions = src.Status.Conditions
 	dst.Status.ObservedGeneration = src.Status.ObservedGeneration
 	if src.Status.Subnets != nil {
-		dst.Status.Subnets = &v1beta1.AWSLoadBalancerControllerStatusSubnets{
-			SubnetTagging: v1beta1.SubnetTaggingPolicy(src.Status.Subnets.SubnetTagging),
+		dst.Status.Subnets = &v1.AWSLoadBalancerControllerStatusSubnets{
+			SubnetTagging: v1.SubnetTaggingPolicy(src.Status.Subnets.SubnetTagging),
 			Internal:      src.Status.Subnets.Internal,
 			Public:        src.Status.Subnets.Public,
 			Tagged:        src.Status.Subnets.Tagged,
@@ -72,9 +72,9 @@ func (src *AWSLoadBalancerController) ConvertTo(dstRaw conversion.Hub) error {
 	return nil
 }
 
-// ConvertFrom converts from the Hub version (v1beta1) to this version.
+// ConvertFrom converts from the Hub version (v1) to this version.
 func (dst *AWSLoadBalancerController) ConvertFrom(srcRaw conversion.Hub) error {
-	src := srcRaw.(*v1beta1.AWSLoadBalancerController)
+	src := srcRaw.(*v1.AWSLoadBalancerController)
 
 	albcWebhookLog.Info("Converting to v1alpha1", "name", src.Name)
 
