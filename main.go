@@ -47,6 +47,7 @@ import (
 	networkingolmv1alpha1 "github.com/openshift/aws-load-balancer-operator/api/v1alpha1"
 	"github.com/openshift/aws-load-balancer-operator/pkg/aws"
 	"github.com/openshift/aws-load-balancer-operator/pkg/controllers/awsloadbalancercontroller"
+	"github.com/openshift/aws-load-balancer-operator/pkg/operator"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -130,8 +131,16 @@ func main() {
 		os.Exit(1)
 	}
 
+	// self provision with AWS credentials
+	setupLog.Info("provisioning credentials")
+	awsSharedCredFileName, err := operator.ProvisionCredentials(context.TODO(), mgr.GetClient(), namespace)
+	if err != nil {
+		setupLog.Error(err, "unable to provision cloud credentials")
+		os.Exit(1)
+	}
+
 	// make and aws.EC2Client
-	ec2Client, err := aws.NewClient(context.TODO(), awsRegion)
+	ec2Client, err := aws.NewClient(context.TODO(), awsRegion, awsSharedCredFileName)
 	if err != nil {
 		setupLog.Error(err, "failed to make aws client")
 		os.Exit(1)

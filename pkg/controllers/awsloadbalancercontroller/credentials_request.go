@@ -147,12 +147,7 @@ func desiredCredentialsRequest(name types.NamespacedName, secretRef corev1.Objec
 		},
 	}
 
-	codec, err := cco.NewCodec()
-	if err != nil {
-		return nil, err
-	}
-
-	providerSpec, err := createProviderConfig(codec)
+	providerSpec, err := createProviderConfig(cco.Codec)
 	if err != nil {
 		return nil, err
 	}
@@ -199,19 +194,14 @@ func isCredentialsRequestChanged(current, desired *cco.CredentialsRequest) (bool
 		return true, nil
 	}
 
-	codec, err := cco.NewCodec()
-	if err != nil {
-		return false, err
-	}
-
 	currentAwsSpec := cco.AWSProviderSpec{}
-	err = codec.DecodeProviderSpec(current.Spec.ProviderSpec, &currentAwsSpec)
+	err := cco.Codec.DecodeProviderSpec(current.Spec.ProviderSpec, &currentAwsSpec)
 	if err != nil {
 		return false, err
 	}
 
 	desiredAwsSpec := cco.AWSProviderSpec{}
-	err = codec.DecodeProviderSpec(desired.Spec.ProviderSpec, &desiredAwsSpec)
+	err = cco.Codec.DecodeProviderSpec(desired.Spec.ProviderSpec, &desiredAwsSpec)
 	if err != nil {
 		return false, err
 	}

@@ -327,8 +327,6 @@ spec:
                 command:
                 - /manager
                 env:
-                - name: AWS_SHARED_CREDENTIALS_FILE
-                  value: /etc/aws-credentials/credentials
                 - name: RELATED_IMAGE_CONTROLLER
                   value: quay.io/aws-load-balancer-operator/aws-load-balancer-controller@sha256:f359f63169432cf8029b189f6605f21d660f0f805b91d55fe964185d0b8ae0b2
                 - name: TARGET_NAMESPACE
@@ -367,8 +365,6 @@ spec:
                     drop:
                     - ALL
                 volumeMounts:
-                - mountPath: /etc/aws-credentials
-                  name: aws-credentials
                 - mountPath: /var/run/secrets/openshift/serviceaccount
                   name: bound-sa-token
                   readOnly: true
@@ -379,12 +375,6 @@ spec:
               serviceAccountName: aws-load-balancer-operator-controller-manager
               terminationGracePeriodSeconds: 10
               volumes:
-              - name: aws-credentials
-                secret:
-                  items:
-                  - key: credentials
-                    path: credentials
-                  secretName: aws-load-balancer-operator
               - name: bound-sa-token
                 projected:
                   defaultMode: 292
