@@ -1,6 +1,6 @@
 # Pre-Requisites
 
-- [IAM Role for STS clusters](#iam-role-for-sts-cluster)
+- [IAM Role for STS clusters](#iam-role-for-sts-clusters)
     - [Option 1. Using ccoctl](#option-1-using-ccoctl)
     - [Option 2. Using the AWS CLI](#option-2-using-the-aws-cli)
 - [VPC and Subnets](#vpc-and-subnets)
@@ -10,14 +10,14 @@
         - [Private subnets](#private-subnets)
 
 # IAM Role for STS clusters
-Additional IAM Role is needed for the operator to be successfully installed. This is needed to interact with subnets and VPCs.
-The operator will generate `CredentialsRequest` with this role to self bootstrap with AWS credentials.
+An additional IAM Role is needed for the operator to be successfully installed in STS clusters. This is needed to interact with subnets and VPCs.
+The operator will generate a `CredentialsRequest` with this role to self bootstrap with AWS credentials.
 
 There are two options for creating the IAM role:
 - Using a pre-defined `CredentialsRequest`.
 - Using pre-defined AWS manifests.
 
-For handling `CredentialsRequests`, the cloud credential operator utility, [ccoctl](https://docs.openshift.com/container-platform/latest/authentication/managing_cloud_provider_credentials/cco-mode-sts.html#cco-ccoctl-configuring_cco-mode-sts), can be utilized.
+For handling `CredentialsRequests`, the cloud credential operator utility, [`ccoctl`](https://docs.openshift.com/container-platform/latest/authentication/managing_cloud_provider_credentials/cco-mode-sts.html#cco-ccoctl-configuring_cco-mode-sts), can be utilized.
 If you prefer not to use `ccoctl`, or your system doesn't support it, the AWS CLI can be an alternative.
 
 ## Option 1. Using `ccoctl`
@@ -27,7 +27,7 @@ If you prefer not to use `ccoctl`, or your system doesn't support it, the AWS CL
 2. Use the `ccoctl` tool to create a IAM role from the operator's `CredentialsRequest`:
 
     ```bash
-    curl --create-dirs -o <path-to-credrequests-dir>/cr.yaml https://raw.githubusercontent.com/openshift/aws-load-balancer-operator/main/hack/operator-credentials-request.yaml
+   $ curl --create-dirs -o <path-to-credrequests-dir>/cr.yaml https://raw.githubusercontent.com/openshift/aws-load-balancer-operator/main/hack/operator-credentials-request.yaml
     ccoctl aws create-iam-roles \
         --name <name> --region=<aws_region> \
         --credentials-requests-dir=<path-to-credrequests-dir> \
@@ -129,7 +129,7 @@ If you prefer not to use `ccoctl`, or your system doesn't support it, the AWS CL
     aws iam put-role-policy --role-name albo-operator --policy-name perms-policy-albo-operator --policy-document file://albo-operator-permission-policy.json
     ```
 
-4. Install the operator using the OpenShift OperatorHub WebUI or by running the following commands:
+4. Install the operator using the OpenShift OperatorHub web UI or by running the following commands:
 
     ```bash
     $ oc create namespace aws-load-balancer-operator

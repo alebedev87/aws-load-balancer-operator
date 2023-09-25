@@ -47,7 +47,7 @@ const (
 
 // ProvisionCredentials provisions cloud credentials secret in the given namespace
 // with IAM policies required by the operator. The credentials data are put
-// into a file which can be used to setup AWS SDK client.
+// into a file which can be used to set up AWS SDK client.
 func ProvisionCredentials(ctx context.Context, client client.Client, secretNamespace string) (string, error) {
 	roleARN := os.Getenv(roleARNEnvVar)
 	if roleARN != "" && !arn.IsARN(roleARN) {
@@ -93,7 +93,7 @@ func buildCredentialsRequest(secretNamespace, secretName, roleARN string) *cco.C
 	credReq := &cco.CredentialsRequest{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      operatorCredentialsRequestName,
-			Namespace: "openshift-cloud-credential-operator",
+			Namespace: cco.CloudCredOperatorNamespace,
 		},
 		Spec: cco.CredentialsRequestSpec{
 			ProviderSpec: providerSpec,
@@ -142,7 +142,7 @@ func waitForSecret(ctx context.Context, client client.Client, namespace, name st
 // It returns the full path of the created file and an error
 func credentialsFileFromSecret(secret *corev1.Secret, pattern string) (string, error) {
 	if len(secret.Data[credentialsKey]) == 0 {
-		return "", fmt.Errorf("failed to to find credentials in secret")
+		return "", fmt.Errorf("failed to find credentials in secret")
 	}
 
 	f, err := os.CreateTemp("", pattern)
