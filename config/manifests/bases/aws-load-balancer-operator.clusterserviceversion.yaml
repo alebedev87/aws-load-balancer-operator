@@ -33,11 +33,11 @@ spec:
     ### Prerequisites for installation
     In certain scenarios, the operator requires some steps to be executed before it can be installed.
 
-    ### Instructions for STS cluster (inclusing ROSA in STS mode)
+    #### Instructions for STS cluster (including ROSA in STS mode)
 
     [Bootstrapping AWS Load Balancer Operator on Security Token Service cluster](https://docs.openshift.com/container-platform/latest/networking/aws_load_balancer_operator/installing-albo-sts-cluster.html#nw-bootstra-albo-on-sts-cluster_albo-sts-cluster).
 
-    ### Instructions for UPI based installation
+    #### Instructions for UPI based installation
 
     Additional documentation can be found in [VPC and subnets](https://github.com/openshift/aws-load-balancer-operator/blob/main/docs/prerequisites.md#vpc-and-subnets).
   displayName: AWS Load Balancer Operator

@@ -1,5 +1,7 @@
 # Pre-Requisites
 
+In certain scenarios, the operator requires extra steps to be executed before it can be installed.
+
 - [IAM Role for STS clusters](#iam-role-for-sts-clusters)
     - [Option 1. Using ccoctl](#option-1-using-ccoctl)
     - [Option 2. Using the AWS CLI](#option-2-using-the-aws-cli)
@@ -9,7 +11,7 @@
         - [Public subnets](#public-subnets)
         - [Private subnets](#private-subnets)
 
-# IAM Role for STS clusters
+## IAM Role for STS clusters
 An additional IAM Role is needed for the operator to be successfully installed in STS clusters. This is needed to interact with subnets and VPCs.
 The operator will generate a `CredentialsRequest` with this role to self bootstrap with AWS credentials.
 
@@ -20,7 +22,7 @@ There are two options for creating the IAM role:
 For handling `CredentialsRequests`, the cloud credential operator utility, [`ccoctl`](https://docs.openshift.com/container-platform/latest/authentication/managing_cloud_provider_credentials/cco-mode-sts.html#cco-ccoctl-configuring_cco-mode-sts), can be utilized.
 If you prefer not to use `ccoctl`, or your system doesn't support it, the AWS CLI can be an alternative.
 
-## Option 1. Using `ccoctl`
+### Option 1. Using `ccoctl`
 
 1. [Extract and prepare the `ccoctl` binary](https://docs.openshift.com/container-platform/4.13/authentication/managing_cloud_provider_credentials/cco-mode-sts.html#cco-ccoctl-configuring_cco-mode-sts)
 
@@ -28,7 +30,7 @@ If you prefer not to use `ccoctl`, or your system doesn't support it, the AWS CL
 
     ```bash
    $ curl --create-dirs -o <path-to-credrequests-dir>/cr.yaml https://raw.githubusercontent.com/openshift/aws-load-balancer-operator/main/hack/operator-credentials-request.yaml
-    ccoctl aws create-iam-roles \
+   $ ccoctl aws create-iam-roles \
         --name <name> --region=<aws_region> \
         --credentials-requests-dir=<path-to-credrequests-dir> \
         --identity-provider-arn <oidc-arn>
@@ -80,7 +82,7 @@ If you prefer not to use `ccoctl`, or your system doesn't support it, the AWS CL
     EOF
     ```
 
-## Option 2. Using the AWS CLI
+### Option 2. Using the AWS CLI
 
 1. Create AWS Load Balancer Operator's namespace:
 
@@ -144,8 +146,6 @@ If you prefer not to use `ccoctl`, or your system doesn't support it, the AWS CL
       targetNamespaces: []
     EOF
 
-    $ ROLEARN="<iam-role-arn>"
-
     $ cat <<EOF | oc apply -f -
     apiVersion: operators.coreos.com/v1alpha1
     kind: Subscription
@@ -160,7 +160,7 @@ If you prefer not to use `ccoctl`, or your system doesn't support it, the AWS CL
       config:
         env:
         - name: ROLEARN
-          value: "${ROLEARN}"
+          value: "${OPERATOR_ROLE_ARN}"
     EOF
     ```
 ## VPC and Subnets
